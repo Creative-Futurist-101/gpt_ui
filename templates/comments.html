@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python AI Chat Interface</title>
+
+    <!-- CSS for styling the page layout and appearance -->
+    <style>
+        /* Basic global styles for resetting margins and padding */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box; /* Ensures that padding and borders don’t affect width */
+            font-family: system-ui, -apple-system, sans-serif; /* Sets a clean, system-based font */
+        }
+        
+        /* Main background color and alignment settings for the entire body */
+        body {
+            background-color: #343541; /* Dark background for a modern look */
+            color: #FFFFFF; /* White text color for contrast */
+            display: flex; /* Makes the layout flexible, so we can control sidebar and main area */
+            min-height: 100vh; /* Ensures the height is always at least the full viewport height */
+        }
+
+        /* Sidebar container for previous conversations and the "New Chat" button */
+        .sidebar {
+            width: 250px; /* Fixed width for the sidebar */
+            background-color: #282b30; /* Slightly darker shade for the sidebar */
+            padding: 20px;
+            overflow-y: auto; /* Allows scrolling if content overflows */
+        }
+
+        /* Styling for the "New Chat" button */
+        #newChatButton {
+            margin-bottom: 15px; /* Adds space below the button */
+            padding: 10px;
+            width: 100%; /* Full width inside the sidebar */
+            background-color: #19c37d; /* Bright green color to stand out */
+            color: white; /* White text color for contrast */
+            border: none; /* Removes default button border */
+            border-radius: 5px; /* Rounded corners */
+            cursor: pointer; /* Shows a pointer on hover to indicate it’s clickable */
+        }
+
+        /* Styling for the sidebar header */
+        .sidebar h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        /* Styles for the list of previous conversations */
+        #conversationList {
+            list-style: none; /* Removes default bullet points */
+            padding: 0;
+        }
+
+        /* Each list item (conversation preview) in the sidebar */
+        #conversationList li {
+            padding: 10px;
+            cursor: pointer; /* Pointer cursor to indicate it’s clickable */
+            border-radius: 5px; /* Rounded corners for each item */
+            transition: background-color 0.3s; /* Smooth transition effect on hover */
+        }
+
+        /* Background color change when hovering over a conversation */
+        #conversationList li:hover {
+            background-color: #40414f; /* Darker background on hover */
+        }
+
+        /* Main chat container for messages */
+        .chat-container {
+            flex-grow: 1; /* Allows the chat container to grow and fill available space */
+            max-width: 800px; /* Sets a maximum width */
+            margin: 0 auto;
+            padding: 20px;
+            width: 100%;
+            overflow-y: auto; /* Allows scrolling if there are many messages */
+            padding-bottom: 100px; /* Adds space at the bottom */
+        }
+        
+        /* Individual message styling */
+        .message {
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 5px; /* Rounded corners */
+            max-width: 100%;
+            white-space: pre-wrap; /* Preserves whitespace and line breaks */
+            line-height: 1.5;
+        }
+        
+        /* Styling for user messages */
+        .user-message {
+            background-color: #444654; /* Dark gray background for user messages */
+        }
+        
+        /* Styling for assistant messages */
+        .assistant-message {
+            background-color: #343541; /* Matches main background */
+        }
+        
+        /* Message header styling, which includes the avatar and name */
+        .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        /* Avatar styling */
+        .avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 5px;
+            margin-right: 10px; /* Space between avatar and name */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        /* User avatar styling */
+        .user-avatar {
+            background-color: #7c7c8a; /* Gray background */
+        }
+        
+        /* Assistant avatar styling */
+        .assistant-avatar {
+            background-color: #19c37d; /* Bright green background */
+        }
+        
+        /* Container for the input area at the bottom */
+        .input-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background-color: #343541;
+            border-top: 1px solid #565869; /* Border on top to separate from chat */
+        }
+        
+        /* Wrapper for the message input area */
+        .input-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        /* Text area for the user to type messages */
+        .message-input {
+            width: 100%;
+            padding: 15px 60px 15px 15px; /* Adds padding and leaves space for send button */
+            border-radius: 5px;
+            border: 1px solid #565869;
+            background-color: #40414f; /* Dark background for input */
+            color: white;
+            font-size: 16px;
+            resize: none; /* Disables resizing */
+            min-height: 52px;
+            max-height: 200px;
+            outline: none; /* Removes default blue outline */
+        }
+        
+        /* Send button inside the input area */
+        .send-button {
+            position: absolute;
+            right: 10px; /* Aligns it to the right of the input */
+            bottom: 8px;
+            background: none;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        
+        /* Hover effect for the send button */
+        .send-button:hover {
+            background-color: #565869;
+        }
+        
+        /* Disabled state for the send button */
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Typing indicator to show when the assistant is "typing" */
+        .typing-indicator {
+            position: absolute;
+            bottom: 80px; /* Places it just above the input field */
+            left: 60px; /* Moves it a bit to the right */
+            color: #8e8ea0;
+            display: none; /* Hidden by default */
+            font-size: 12px; /* Small font size for subtlety */
+            font-style: italic; /* Italics for a gentle emphasis */
+        }
+
+        /* Animation for blinking cursor effect */
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background-color: #fff;
+            animation: blink 1s infinite; /* Blinks at 1-second intervals */
+            margin-left: 2px;
+        }
+        
+        /* Keyframes for the blinking effect */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        /* Styling for messages as they are being "streamed" (optional effect) */
+        .streaming-message {
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar for previous conversations and the "New Chat" button -->
+    <div class="sidebar">
+        <button id="newChatButton" onclick="startNewChat()">New Chat</button>
+        <h2>Previous Conversations</h2>
+        <ul id="conversationList">
+            {% for session_id, history in chat_history.items() %}
+            <li onclick="loadConversation('{{ session_id }}')">
+                <strong>
+                    {{ history[0]['content'] if history else 'No messages yet' }}
+                </strong>
+                <span style="font-size: 0.8em; color: #888;">
+                    - {{ history[0]['timestamp'] if history else '' }}
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Main chat container for displaying messages -->
+    <div class="chat-container" id="chatContainer"></div>
+
+    <!-- Typing indicator, appears when assistant is responding -->
+    <div class="typing-indicator" id="typingIndicator">
+        Assistant is typing<span class="cursor"></span>
+    </div>
+
+    <!-- Input container for typing and sending messages -->
+    <div class="input-container">
+        <div class="input-wrapper">
+            <textarea 
+                class="message-input" 
+                id="messageInput" 
+                placeholder="Send a message..."
+                rows="1"
+                autofocus
+            ></textarea>
+            <button class="send-button" id="sendButton" disabled>
+                ➤
+            </button>
+        </div>
+    </div>
+
+   <!-- JavaScript code to handle the chat functionality -->
+    <script>
+        // References to main elements for easier access in the code
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const typingIndicator = document.getElementById('typingIndicator');
+
+        let isProcessing = false; // A flag to prevent multiple messages from being sent at once
+
+        // Automatically resize the textarea as the user types, so it grows with content
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto'; // Reset height to allow for proper resizing
+            this.style.height = Math.min(this.scrollHeight, 200) + 'px'; // Set height based on content, up to a max
+            sendButton.disabled = !this.value.trim() || isProcessing; // Enable send button if there’s content and not processing
+        });
+
+        // Function to create a message element (either from the user or the assistant)
+        function createMessageElement(role, content, isStreaming = false) {
+            const messageDiv = document.createElement('div'); // Main div for the message
+            messageDiv.className = `message ${role}-message ${isStreaming ? 'streaming-message' : ''}`;
+
+            const headerDiv = document.createElement('div'); // Header for avatar and name
+            headerDiv.className = 'message-header';
+
+            const avatarDiv = document.createElement('div'); // Avatar for either user or assistant
+            avatarDiv.className = `avatar ${role}-avatar`;
+            avatarDiv.textContent = role === 'user' ? 'U' : 'A'; // 'U' for user, 'A' for assistant
+
+            const roleText = document.createElement('span'); // Text for either "You" or "Assistant"
+            roleText.textContent = role === 'user' ? 'You' : 'Assistant';
+
+            // Add avatar and name to header, then add header to message
+            headerDiv.appendChild(avatarDiv);
+            headerDiv.appendChild(roleText);
+
+            const contentDiv = document.createElement('div'); // Content div for the actual message text
+            contentDiv.textContent = content; // Set the message text content
+
+            messageDiv.appendChild(headerDiv); // Add header to message div
+            messageDiv.appendChild(contentDiv); // Add content to message div
+
+            return messageDiv; // Return the complete message element
+        }
+
+        // Function to load a previous conversation based on its session ID
+        async function loadConversation(sessionId) {
+            const response = await fetch(`/get_conversation?session_id=${sessionId}`); // Fetch conversation from server
+            const data = await response.json(); // Parse the response JSON data
+            chatContainer.innerHTML = ''; // Clear the current chat content
+            data.history.forEach(msg => {
+                const messageDiv = createMessageElement(msg.role, msg.content); // Create message element for each message
+                chatContainer.appendChild(messageDiv); // Add the message to the chat container
+            });
+        }
+
+        // Function to start a new chat session
+        function startNewChat() {
+            fetch('/new_chat') // Make a request to start a new chat
+                .then(response => response.json())
+                .then(data => {
+                    chatContainer.innerHTML = ''; // Clear current chat content
+                    messageInput.value = ''; // Clear the input area
+                    const greetingDiv = createMessageElement('assistant', '', true); // Create a placeholder greeting from assistant
+                    chatContainer.appendChild(greetingDiv); // Add greeting to chat
+                    streamText(greetingDiv, "Hello! I'm your AI assistant. How can I help you today?");
+                    updateSidebar(); // Refresh the sidebar to show the new session
+                })
+                .catch(error => console.error('Error starting new chat:', error)); // Log any errors
+        }
+
+        // Function to update the sidebar with all previous conversations
+        function updateSidebar() {
+            fetch('/') // Re-fetch the main page to get updated conversation list
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const conversationList = doc.querySelector('#conversationList').innerHTML;
+                    document.querySelector('#conversationList').innerHTML = conversationList; // Update the list in sidebar
+                })
+                .catch(error => console.error('Error updating sidebar:', error)); // Log any errors
+        }
+
+        // Function to send a message when the user submits it
+        async function sendMessage() {
+            if (isProcessing) return; // Prevent sending if currently processing
+
+            const message = messageInput.value.trim(); // Get and trim the input message
+            if (!message) return; // Do nothing if message is empty
+
+            isProcessing = true; // Set processing flag
+            messageInput.value = ''; // Clear input area
+            messageInput.style.height = 'auto'; // Reset input area height
+            sendButton.disabled = true; // Disable send button while processing
+
+            const userMessageDiv = createMessageElement('user', message); // Create user message element
+            chatContainer.appendChild(userMessageDiv); // Add it to the chat
+
+            typingIndicator.style.display = 'block'; // Show typing indicator for assistant
+
+            try {
+                const response = await fetch('/send_message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message }), // Send the user message to the server
+                });
+
+                const data = await response.json(); // Parse server response
+
+                typingIndicator.style.display = 'none'; // Hide typing indicator
+
+                const assistantMessageDiv = createMessageElement('assistant', '', true); // Placeholder for assistant message
+                chatContainer.appendChild(assistantMessageDiv); // Add assistant message to chat
+                await streamText(assistantMessageDiv, data.response); // Stream the assistant response into the message
+
+            } catch (error) {
+                console.error('Error:', error); // Log any errors
+                typingIndicator.style.display = 'none'; // Hide typing indicator on error
+                const errorMessageDiv = createMessageElement('assistant', 'Sorry, there was an error processing your message.');
+                chatContainer.appendChild(errorMessageDiv); // Show error message to the user
+            }
+
+            isProcessing = false; // Reset processing flag
+            sendButton.disabled = !messageInput.value.trim(); // Re-enable send button if input is not empty
+            chatContainer.scrollTop = chatContainer.scrollHeight; // Scroll to the bottom of chat
+        }
+
+        // Function to create a streaming text effect for messages (e.g., typing effect)
+        async function streamText(messageDiv, text) {
+            const contentDiv = messageDiv.querySelector('div:nth-child(2)'); // Locate the message content div
+            let currentText = ''; // Start with empty text
+
+            // Loop through each character in the response text
+            for (let i = 0; i < text.length; i++) {
+                currentText += text[i]; // Add character to the current text
+                contentDiv.textContent = currentText; // Update message content with new character
+                chatContainer.scrollTop = chatContainer.scrollHeight; // Auto-scroll to bottom
+                await new Promise(r => setTimeout(r, Math.random() * 30 + 20)); // Simulate typing delay
+            }
+
+            messageDiv.classList.remove('streaming-message'); // Remove streaming effect once complete
+        }
+
+        // Event listener for the send button to submit messages
+        sendButton.addEventListener('click', sendMessage);
+
+        // Event listener for pressing Enter (without Shift) to submit messages
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault(); // Prevent newline on Enter
+                sendMessage(); // Call send message function
+            }
+        });
+
+        // Initial greeting message when the page loads
+        window.addEventListener('load', async () => {
+            const greetingDiv = createMessageElement('assistant', '', true); // Placeholder for greeting
+            chatContainer.appendChild(greetingDiv); // Add greeting to chat
+            await streamText(greetingDiv, "Hello! I'm your AI assistant. How can I help you today?");
+        });
+    </script>
+</body>
+</html>

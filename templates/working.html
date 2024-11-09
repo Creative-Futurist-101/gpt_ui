@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python AI Chat Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        
+        body {
+            background-color: #343541;
+            color: #FFFFFF;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: #282b30;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        #newChatButton {
+            margin-bottom: 15px;
+            padding: 10px;
+            width: 100%;
+            background-color: #19c37d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .sidebar h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        #conversationList {
+            list-style: none;
+            padding: 0;
+        }
+
+        #conversationList li {
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        #conversationList li:hover {
+            background-color: #40414f;
+        }
+
+        .chat-container {
+            flex-grow: 1;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            width: 100%;
+            overflow-y: auto;
+            padding-bottom: 100px;
+        }
+        
+        .message {
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 5px;
+            max-width: 100%;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+        
+        .user-message {
+            background-color: #444654;
+        }
+        
+        .assistant-message {
+            background-color: #343541;
+        }
+        
+        .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 5px;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .user-avatar {
+            background-color: #7c7c8a;
+        }
+        
+        .assistant-avatar {
+            background-color: #19c37d;
+        }
+        
+        .input-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background-color: #343541;
+            border-top: 1px solid #565869;
+        }
+        
+        .input-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        .message-input {
+            width: 100%;
+            padding: 15px 60px 15px 15px;
+            border-radius: 5px;
+            border: 1px solid #565869;
+            background-color: #40414f;
+            color: white;
+            font-size: 16px;
+            resize: none;
+            min-height: 52px;
+            max-height: 200px;
+            outline: none;
+        }
+        
+        .send-button {
+            position: absolute;
+            right: 10px;
+            bottom: 8px;
+            background: none;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        
+        .send-button:hover {
+            background-color: #565869;
+        }
+        
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .typing-indicator {
+            position: absolute;
+            bottom: 80px;
+            left: 250px; /* Adjust this value to move it further to the right */
+            color: #8e8ea0;
+            display: none;
+            font-size: 12px;
+            font-style: italic;
+
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background-color: #fff;
+            animation: blink 1s infinite;
+            margin-left: 2px;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        .streaming-message {
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <button id="newChatButton" onclick="startNewChat()">New Chat</button>
+        <h2>Previous Conversations</h2>
+        <ul id="conversationList">
+            {% for session_id, history in chat_history.items() %}
+            <li onclick="loadConversation('{{ session_id }}')">
+                <strong>
+                    {{ history[0]['content'] if history else 'No history yet' }}
+                </strong>
+                <span style="font-size: 0.8em; color: #888;">
+                    - {{ history[0]['timestamp'] if history else '' }}
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    <div class="chat-container" id="chatContainer"></div>
+    <div class="typing-indicator" id="typingIndicator">
+        <div class="message assistant-message">
+            <div class="message-header">
+                <div class="avatar assistant-avatar">A</div>
+                Assistant is typing<span class="cursor"></span>
+            </div>
+        </div>
+    </div>
+    <div class="input-container">
+        <div class="input-wrapper">
+            <textarea 
+                class="message-input" 
+                id="messageInput" 
+                placeholder="Send a message..."
+                rows="1"
+                autofocus
+            ></textarea>
+            <button class="send-button" id="sendButton" disabled>
+                ➤
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const typingIndicator = document.getElementById('typingIndicator');
+
+        let isProcessing = false;
+
+        // Auto-resize textarea
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+            sendButton.disabled = !this.value.trim() || isProcessing;
+        });
+
+        function createMessageElement(role, content, isStreaming = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}-message ${isStreaming ? 'streaming-message' : ''}`;
+
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'message-header';
+
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = `avatar ${role}-avatar`;
+            avatarDiv.textContent = role === 'user' ? 'U' : 'A';
+
+            const roleText = document.createElement('span');
+            roleText.textContent = role === 'user' ? 'You' : 'Assistant';
+
+            headerDiv.appendChild(avatarDiv);
+            headerDiv.appendChild(roleText);
+
+            const contentDiv = document.createElement('div');
+            contentDiv.textContent = content;
+
+            messageDiv.appendChild(headerDiv);
+            messageDiv.appendChild(contentDiv);
+
+            return messageDiv;
+        }
+
+        async function loadConversation(sessionId) {
+            const response = await fetch(`/get_conversation?session_id=${sessionId}`);
+            const data = await response.json();
+            chatContainer.innerHTML = '';
+            data.history.forEach(msg => {
+                const messageDiv = createMessageElement(msg.role, msg.content);
+                chatContainer.appendChild(messageDiv);
+            });
+        }
+
+        function startNewChat() {
+            fetch('/new_chat')
+                .then(response => response.json())
+                .then(data => {
+                    chatContainer.innerHTML = '';
+                    messageInput.value = '';
+                    const greetingDiv = createMessageElement('assistant', '', true);
+                    chatContainer.appendChild(greetingDiv);
+                    streamText(greetingDiv, "Hello! I'm your AI assistant. How can I help you today?");
+                    updateSidebar(); // Refresh the sidebar to show the new session
+                })
+                .catch(error => console.error('Error starting new chat:', error));
+        }
+
+        function updateSidebar() {
+            fetch('/')
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const conversationList = doc.querySelector('#conversationList').innerHTML;
+                    document.querySelector('#conversationList').innerHTML = conversationList;
+                })
+                .catch(error => console.error('Error updating sidebar:', error));
+        }
+
+        async function sendMessage() {
+            if (isProcessing) return;
+
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            isProcessing = true;
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+            sendButton.disabled = true;
+
+            const userMessageDiv = createMessageElement('user', message);
+            chatContainer.appendChild(userMessageDiv);
+
+            typingIndicator.style.display = 'block';
+
+            try {
+                const response = await fetch('/send_message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message }),
+                });
+
+                const data = await response.json();
+
+                typingIndicator.style.display = 'none';
+
+                const assistantMessageDiv = createMessageElement('assistant', '', true);
+                chatContainer.appendChild(assistantMessageDiv);
+                await streamText(assistantMessageDiv, data.response);
+
+            } catch (error) {
+                console.error('Error:', error);
+                typingIndicator.style.display = 'none';
+                const errorMessageDiv = createMessageElement('assistant', 'Sorry, there was an error processing your message.');
+                chatContainer.appendChild(errorMessageDiv);
+            }
+
+            isProcessing = false;
+            sendButton.disabled = !messageInput.value.trim();
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function streamText(messageDiv, text) {
+            const contentDiv = messageDiv.querySelector('div:nth-child(2)');
+            let currentText = '';
+
+            for (let i = 0; i < text.length; i++) {
+                currentText += text[i];
+                contentDiv.textContent = currentText;
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                await new Promise(r => setTimeout(r, Math.random() * 30 + 20));
+            }
+
+            messageDiv.classList.remove('streaming-message');
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        window.addEventListener('load', async () => {
+            const greetingDiv = createMessageElement('assistant', '', true);
+            chatContainer.appendChild(greetingDiv);
+            await streamText(greetingDiv, "Hello! I'm your AI assistant. How can I help you today?");
+        });
+    </script>
+</body>
+</html>
